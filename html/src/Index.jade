@@ -1,5 +1,5 @@
 div#map_canvas
-    ui-gmap-google-map(events='map.events' center='map.center' zoom='map.zoom')
+    ui-gmap-google-map(events='map.events' center='map.center' zoom='map.zoom' options='map.options')
         ui-gmap-marker(ng-if="marker" ng-repeat="singleMarker in dataSet track by $index" idKey='singleMarker.objectid' coords="singleMarker.location")
     div#map_options
         h4.center Data Options

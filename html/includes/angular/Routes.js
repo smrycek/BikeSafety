@@ -30,7 +30,7 @@ OCEM.config(['$httpProvider', function ($httpProvider) {
             }
         };
     });
-}])
+}]);
 
 
 function indexCtrl($scope, $http, $firebase) {
@@ -48,6 +48,9 @@ function indexCtrl($scope, $http, $firebase) {
     $scope.map = {
         center: {latitude: 35.9886, longitude: -78.9072},
         zoom: 12,
+        options: {
+          minZoom: 12
+        },
         events: {
             tilesloaded: function (map) {
                 $scope.$apply(function () {
