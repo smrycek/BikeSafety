@@ -23,12 +23,14 @@
   ],
   "main": "./server.js",
   "dependencies": {
+    "ejs": "1.0.0",
     "express": "~3.1.0",
+    "firebase": "2.0.3",
+    "googlemaps": "0.1.20",
+    "gulp": "^3.8.10",
     "nconf": "~0.6.7",
     "q": "1.0.1",
-    "googlemaps": "0.1.20",
-    "firebase": "2.0.3",
-    "ejs": "1.0.0"
+    "topojson": "^1.6.18"
   },
   "noAnalyze": true,
   "license": "Apache",

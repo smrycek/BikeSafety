@@ -36,10 +36,9 @@ OCEM.config(['$httpProvider', function ($httpProvider) {
 function indexCtrl($scope, $http, $q) {
     $scope.clickedFeature = "";
     $scope.marker = false;
-    $scope.url = '/data/durham-bike-lanes.geojson';
+    $scope.url = '/data/durham-bike-lanes.topojson';
     var addedListener = false;
     var wasLoaded = false;
-    var count = 0;
 
     $('#pleaseWaitDialog').modal('show');
     var routeInfo = $('#route_info');
@@ -59,63 +58,87 @@ function indexCtrl($scope, $http, $q) {
                         event.feature.setProperty("severity", "0");
                         event.feature.setProperty("severityCount", "0");
                         event.feature.wrecks = [];
-                        count++;
                     });
                 }
                 if (!wasLoaded) {
                     $('#modalStatus').text("Loading Bike Routes...");
-                    map.data.loadGeoJson($scope.url);
-                    var geoJsonLoaded = $q.defer();
-                    map.data.addListener('addfeature', function() {
-                        geoJsonLoaded.resolve(true);
-                    });
-
                     $scope.dataSet = [];
-                    $('#modalStatus').text("Retrieving & Processing Crash Data...");
-                    // We can't do data processing until the map has loaded its
-                    // geojson data, so wait:
-                    geoJsonLoaded.promise.then(function() {
-                        return $http.get("/data/durham.json");
-                    }).then(function(result) {
-                        $scope.dataSet = [];
-                        $scope.highestWrecks = 0;
-                        result.data.forEach(function(item) {
-                            if(item.city !== 'Durham') { return; }
-                            map.data.forEach(function(feature) {
-                                var featureFound = false;
-                                feature.getGeometry().getArray().forEach(function(coord) {
-                                    var dist = calcCrow(coord.lat(), coord.lng(), item.location.latitude, item.location.longitude);
-                                    if (dist < 0.04572 && !featureFound) { //150 feet
-                                        featureFound = true;
-                                        feature.setProperty("severityCount", parseFloat(feature.getProperty('severityCount'))+1);
-                                        if (parseFloat(feature.getProperty('severityCount')) > $scope.highestWrecks) {
-                                            $scope.highestWrecks = parseFloat(feature.getProperty('severityCount'));
-                                            $scope.highestWreckLoc = item;
+
+                    $http.get($scope.url).
+                        then(function(result) {
+                            $('#modalStatus').text("Retrieving & Processing Crash Data...");
+                            var roads = topojson.feature(result.data,result.data.objects['durham-bike-lanes']).features;
+                            var overlay = new google.maps.OverlayView();
+                            overlay.onAdd = function() {
+                                var svg = d3.select(this.getPanes().overlayLayer)
+                                    .append('div')
+                                        .attr('class','bikeOverlay')
+                                    .append('svg')
+                                        .attr('class','bikeSvg');
+                                var roadGroup = svg.append('g')
+                                    .attr('class','roads');
+
+                                overlay.draw = function() {
+                                    var overlayProjection = this.getProjection();
+
+                                    var d3Projection = function(gmapCoord) {
+                                        var googleCoordinates = new google.maps.LatLng(gmapCoord[1], gmapCoord[0]);
+                                        var pixelCoordinates = overlayProjection.fromLatLngToDivPixel(googleCoordinates);
+                                        return [pixelCoordinates.x + 4000 , pixelCoordinates.y + 4000];
+                                    };
+
+                                    var path = d3.geo.path().projection(d3Projection);
+                                    roadGroup.selectAll('path')
+                                        .data(roads)
+                                        .attr('d',path)
+                                        .enter().append('svg:path')
+                                        .attr('d',path)
+                                        .attr('class','road');
+                                };
+                            };
+                            overlay.setMap(map);
+                            return $http.get("/data/durham.json");
+                        }).
+                        then(function(result) {
+                            $scope.dataSet = [];
+                            $scope.highestWrecks = 0;
+                            result.data.forEach(function(item) {
+                                if(item.city !== 'Durham') { return; }
+                                map.data.forEach(function(feature) {
+                                    var featureFound = false;
+                                    feature.getGeometry().getArray().forEach(function(coord) {
+                                        var dist = calcCrow(coord.lat(), coord.lng(), item.location.latitude, item.location.longitude);
+                                        if (dist < 0.04572 && !featureFound) { //150 feet
+                                            featureFound = true;
+                                            feature.setProperty("severityCount", parseFloat(feature.getProperty('severityCount'))+1);
+                                            if (parseFloat(feature.getProperty('severityCount')) > $scope.highestWrecks) {
+                                                $scope.highestWrecks = parseFloat(feature.getProperty('severityCount'));
+                                                $scope.highestWreckLoc = item;
+                                            }
+                                            feature.wrecks.push(item);
+                                            $scope.dataSet.push(item);
                                         }
-                                        feature.wrecks.push(item);
-                                        $scope.dataSet.push(item);
-                                    }
+                                    });
                                 });
                             });
-                        });
-                        map.data.forEach(function(feature) {
-                            feature.setProperty("severity", parseFloat((feature.getProperty('severityCount'))/$scope.highestWrecks));
-                        });
+                            map.data.forEach(function(feature) {
+                                feature.setProperty("severity", parseFloat((feature.getProperty('severityCount'))/$scope.highestWrecks));
+                            });
 
-                        map.data.addListener('click', function(event){
-                            $scope.clickedFeature = event.feature;
-                            var routeInfo = $('#route_info');
-                            $('.ui-dialog-titlebar-close').html("X");
-                            $('#wreck_count').text(event.feature.getProperty('severityCount'));
-                            routeInfo.dialog( "open" ); // Initialize dialog plugin
-                            $scope.$apply();
-                            routeInfo.dialog( "option", "position", { my: "right bottom", at: "right-14 bottom-28", of: ".angular-google-map-container" } );
+                            map.data.addListener('click', function(event){
+                                $scope.clickedFeature = event.feature;
+                                var routeInfo = $('#route_info');
+                                $('.ui-dialog-titlebar-close').html("X");
+                                $('#wreck_count').text(event.feature.getProperty('severityCount'));
+                                routeInfo.dialog( "open" ); // Initialize dialog plugin
+                                $scope.$apply();
+                                routeInfo.dialog( "option", "position", { my: "right bottom", at: "right-14 bottom-28", of: ".angular-google-map-container" } );
+                            });
+                            $('#pleaseWaitDialog').modal('hide');
+                        }).
+                        catch(function(err) {
+                          console.error(err);
                         });
-                        $('#pleaseWaitDialog').modal('hide');
-                    }).
-                    catch(function(err) {
-                      console.error(err);
-                    });
 
                     wasLoaded = true;
                 }

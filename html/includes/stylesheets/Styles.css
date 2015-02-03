@@ -223,4 +223,24 @@ label {
     content: url(/images/RIDEORDIE.PNG); /* no need for qoutes */
     display: block;
 }
+
+.bikeOverlay {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.bikeSvg {
+    position: absolute;
+    top: -4000px;
+    left: -4000px;
+    width: 8000px;
+    height: 8000px;
+}
+
+.roads path {
+    opacity: 0.2;
+    stroke-width: 2px;
+    stroke: red;
+    fill: none;
 }
