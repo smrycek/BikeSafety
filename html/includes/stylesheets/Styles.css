@@ -239,8 +239,13 @@ label {
 }
 
 .roads path {
-    opacity: 0.2;
+    opacity: 0.4;
     stroke-width: 2px;
     stroke: red;
     fill: none;
+}
+
+.accidents circle {
+  opacity: 0.3;
+  fill: gray;
 }
