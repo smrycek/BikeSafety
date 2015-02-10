@@ -81,16 +81,16 @@ function indexCtrl($scope, $http, $q) {
                         arc.severityCount = 0;
                     });
                     $scope.highestWrecks = 0;
-                    dataset.forEach(function(accident) {
+                    roads.forEach(function(arc) {
                         var arcFound = false;
-                        roads.forEach(function(arc) {
-                            arc.geometry.coordinates.forEach(function(point) {
+                        arc.geometry.coordinates.forEach(function(point) {
+                            dataset.forEach(function(accident) {
                                 var dist = calcCrow(
                                     +accident.latitude,
                                     +accident.longitude,
                                     point[1],
                                     point[0]);
-                                if (dist < 0.04572 && !arcFound) { //300 feet
+                                if (dist < 0.09 && !arcFound) { //300 feet
                                     arcFound = true;
                                     arc.severityCount++;
                                     if (arc.severityCount > $scope.highestWrecks) {
@@ -144,7 +144,7 @@ function indexCtrl($scope, $http, $q) {
 
                             var color = d3.scale.linear()
                                 .domain([0,1,$scope.highestWrecks])
-                                .range(["#637939","#ad494a","#d62728"]);
+                                .range(["#637939","#fd8d3c","#d62728"]);
                             var opacity = d3.scale.linear()
                                 .domain([0,$scope.highestWrecks])
                                 .range([0.5,1]);
@@ -163,23 +163,31 @@ function indexCtrl($scope, $http, $q) {
                                 .attr('stroke-width', (zoom-10) +'px')
                                 .attr('class','road');
 
-                            // var eachCircle = function(d) {
-                            //     var p = d3Projection([d.longitude, d.latitude]);
-                            //     var s = d3.select(this);
-                            //     s.attr('cx', p[0]);
-                            //     s.attr('cy', p[1]);
-                            // };
-                            // accidentGroup.selectAll('circle')
-                            //     .data(dataset, function(d) { return d.objectid; })
-                            //     .each(eachCircle)
-                            //     .enter().append('svg:circle')
-                            //     .each(eachCircle)
-                            //     .attr('r',5)
-                            //     .attr('class','accident');
+                            // find all the unique values in the array
+                            var accidentTypes = d3.set(dataset.map(function(d) {
+                              return d.bike_injur;
+                            })).values();
+
+                            var injuryColors = d3.scale.category10();
+                            var eachCircle = function(d) {
+                                var p = d3Projection([d.longitude, d.latitude]);
+                                var s = d3.select(this);
+                                s.attr('cx', p[0]);
+                                s.attr('cy', p[1]);
+                                s.attr('fill', injuryColors(accidentTypes.indexOf(d.bike_injur)));
+                                s.attr('r', (zoom-10));
+                            };
+                            accidentGroup.selectAll('circle')
+                                .data(dataset, function(d) { return d.objectid; })
+                                .each(eachCircle)
+                                .enter().append('svg:circle')
+                                .each(eachCircle)
+                                .attr('class','accident');
                         };
                     };
                     overlay.setMap(map);
                 }).then(function() {
+                    // TODO update the legend
                     wasLoaded = true;
                     $('#pleaseWaitDialog').modal('hide');
                 }).catch(function(err) {

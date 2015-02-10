@@ -243,6 +243,5 @@ label {
 }
 
 .accidents circle {
-  opacity: 0.3;
-  fill: gray;
+  opacity: 0.5;
 }
