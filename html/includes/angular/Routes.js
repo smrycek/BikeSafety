@@ -48,7 +48,15 @@ function indexCtrl($scope, $http, $q) {
         center: {latitude: 35.9886, longitude: -78.9072},
         zoom: 12,
         options: {
-            minZoom: 12
+            minZoom: 12,
+            maxZoom: 20,
+            styles: [
+                {
+                    featureType: "all",
+                    elementType: "labels",
+                    stylers: [ { visibility: "off" }]
+                }
+            ]
         },
         events: {
             tilesloaded: function (map) {
@@ -68,37 +76,31 @@ function indexCtrl($scope, $http, $q) {
                     roads = topojson.feature(result.data,result.data.objects['durham-bike-lanes']).features;
                 }).then(function() {
                     var path = d3.geo.path();
+                    roads.forEach(function(arc) {
+                        arc.wrecks = [];
+                        arc.severityCount = 0;
+                    });
                     $scope.highestWrecks = 0;
-                    roads.forEach(function(road) {
-                        // TODO instead use the topojson data that D3 is using.
-                        //
-                        // The data here should be thought of as pre-computed,
-                        // because it will be. When it is pre-computed.
-                        //
-                        // There should be a set of two points - those that are
-                        // the road (with color/value information), and then the
-                        // points that weren't included (too far away). Those
-                        // are interesting too in that they communicate where a
-                        // bike path is lacking - where there SHOULD be a bike
-                        // path (bike path desert).
-                        var c = path.centroid(roads[0]);
-                        // console.log("|dataset[0] = "+ JSON.stringify(dataset[0]));
-                        console.log("|d = "+ d3.geo.distance(c,[dataset[0].longitude,dataset[0].latitude]));
-                        [].forEach(function(feature) {
-                            // var featureFound = false;
-                            // feature.getGeometry().getArray().forEach(function(coord) {
-                            //     var dist = calcCrow(coord.lat(), coord.lng(), item.location.latitude, item.location.longitude);
-                            //     if (dist < 0.04572 && !featureFound) { //150 feet
-                            //         featureFound = true;
-                            //         feature.setProperty("severityCount", parseFloat(feature.getProperty('severityCount'))+1);
-                            //         if (parseFloat(feature.getProperty('severityCount')) > $scope.highestWrecks) {
-                            //             $scope.highestWrecks = parseFloat(feature.getProperty('severityCount'));
-                            //             $scope.highestWreckLoc = item;
-                            //         }
-                            //         feature.wrecks.push(item);
-                            //         $scope.dataSet.push(item);
-                            //     }
-                            // });
+                    dataset.forEach(function(accident) {
+                        var arcFound = false;
+                        roads.forEach(function(arc) {
+                            arc.geometry.coordinates.forEach(function(point) {
+                                var dist = calcCrow(
+                                    +accident.latitude,
+                                    +accident.longitude,
+                                    point[1],
+                                    point[0]);
+                                if (dist < 0.04572 && !arcFound) { //300 feet
+                                    arcFound = true;
+                                    arc.severityCount++;
+                                    if (arc.severityCount > $scope.highestWrecks) {
+                                        $scope.highestWrecks = arc.severityCount;
+                                        $scope.highestWreckLoc = accident;
+                                    }
+                                    arc.wrecks.push(accident);
+                                    $scope.dataSet.push(accident);
+                                }
+                            });
                         });
                     });
                     map.data.forEach(function(feature) {
@@ -131,6 +133,7 @@ function indexCtrl($scope, $http, $q) {
 
                         overlay.draw = function() {
                             var overlayProjection = this.getProjection();
+                            var zoom = this.getMap().getZoom();
 
                             var d3Projection = function(gmapCoord) {
                                 var googleCoordinates = new google.maps.LatLng(gmapCoord[1], gmapCoord[0]);
@@ -139,26 +142,40 @@ function indexCtrl($scope, $http, $q) {
                             };
                             var path = d3.geo.path().projection(d3Projection);
 
+                            var color = d3.scale.linear()
+                                .domain([0,1,$scope.highestWrecks])
+                                .range(["#637939","#ad494a","#d62728"]);
+                            var opacity = d3.scale.linear()
+                                .domain([0,$scope.highestWrecks])
+                                .range([0.5,1]);
                             roadGroup.selectAll('path')
                                 .data(roads, function(d) { return d.id; })
                                 .attr('d',path)
+                                .attr('stroke-width', (zoom-10) +'px')
                                 .enter().append('svg:path')
                                 .attr('d',path)
+                                .attr('opacity', function(d, i) {
+                                  return opacity(d.severityCount);
+                                })
+                                .attr('stroke', function(d, i) {
+                                  return color(d.severityCount);
+                                })
+                                .attr('stroke-width', (zoom-10) +'px')
                                 .attr('class','road');
 
-                            var eachCircle = function(d) {
-                                var p = d3Projection([d.longitude, d.latitude]);
-                                var s = d3.select(this);
-                                s.attr('cx', p[0]);
-                                s.attr('cy', p[1]);
-                            };
-                            accidentGroup.selectAll('circle')
-                                .data(dataset, function(d) { return d.objectid; })
-                                .each(eachCircle)
-                                .enter().append('svg:circle')
-                                .each(eachCircle)
-                                .attr('r',5)
-                                .attr('class','accident');
+                            // var eachCircle = function(d) {
+                            //     var p = d3Projection([d.longitude, d.latitude]);
+                            //     var s = d3.select(this);
+                            //     s.attr('cx', p[0]);
+                            //     s.attr('cy', p[1]);
+                            // };
+                            // accidentGroup.selectAll('circle')
+                            //     .data(dataset, function(d) { return d.objectid; })
+                            //     .each(eachCircle)
+                            //     .enter().append('svg:circle')
+                            //     .each(eachCircle)
+                            //     .attr('r',5)
+                            //     .attr('class','accident');
                         };
                     };
                     overlay.setMap(map);
@@ -171,6 +188,26 @@ function indexCtrl($scope, $http, $q) {
             }
         }
     };
+}
+
+//This function takes in latitude and longitude of two location and returns the distance between them as the crow flies (in km)
+function calcCrow(lat1, lon1, lat2, lon2) {
+    var R = 6371; // km
+    var dLat = toRad(lat2-lat1);
+    var dLon = toRad(lon2-lon1);
+    var lat1 = toRad(lat1);
+    var lat2 = toRad(lat2);
+
+    var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    var d = R * c;
+    return d;
+}
+
+// Converts numeric degrees to radians
+function toRad(Value) {
+    return Value * Math.PI / 180;
 }
 
 function getColor(value) {
