@@ -19,7 +19,7 @@ function ($scope, leafletData) {
 
         // TODO fade in with a transition() when the data is added
         selection.selectAll('.userCrash')
-            .data($scope.userCrashes, function(d) { return d.objectid; })
+            .data($scope.userCrashes)
             .each(eachSquare)
             .enter().append('svg:rect')
             .each(eachSquare)
