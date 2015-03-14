@@ -4,6 +4,20 @@ div.container-fluid
       div.panel-body
         form
           div.row
+            div.col-md-12
+              div.alert.alert-dismissable.alert-warning(role="alert" ng-show="positionError")
+                button.close(type="button" data-dismiss="alert" aria-label="Close")
+                  span(aria-hidden="true") &times;
+                strong Darn:
+                | &nbsp; Couldn't figure out your location.
+              div.alert.alert-info(role="alert" ng-show="lookingUpLocation")
+                | Looking up your geographic location...
+              div.alert.alert-dismissable.alert-success(role="alert" ng-show="accidentPosted")
+                button.close(type="button" data-dismiss="alert" aria-label="Close")
+                  span(aria-hidden="true") &times;
+                strong Success!
+                | &nbsp; Your accident has been posted.
+          div.row
             div.col-md-4
               div.panel.panel-default
                 div.panel-heading

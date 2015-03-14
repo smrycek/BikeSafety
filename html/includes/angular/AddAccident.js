@@ -97,21 +97,26 @@ function ($scope, getCrashesUserSubmitted, datasetSettings) {
     }
   };
 
-  $scope.updatePosition = function(position) {
+  var updatePosition = function(position) {
+    $scope.lookingUpLocation = false;
     $scope.center.lat = position.coords.latitude;
     $scope.center.lng = position.coords.longitude;
     $scope.markers.Location.lat = position.coords.latitude;
     $scope.markers.Location.lng = position.coords.longitude;
     $scope.$apply();
   };
-  $scope.showPositionError = function(err) {
-    console.log("TODO show this in the UI");
+  var showPositionError = function(err) {
+    $scope.lookingUpLocation = false;
+    $scope.positionError = true;
   };
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition($scope.updatePosition,$scope.showPositionError);
+    $scope.lookingUpLocation = true;
+    navigator.geolocation.getCurrentPosition(updatePosition,showPositionError);
   }
 
   $scope.addAccident = function() {
+    // TODO show some kind of status notification, maybe redirect to the map
+    // when the new accident has been added.
     var dataset;
     getCrashesUserSubmitted.then(function(result) {
         var accident = _.clone(crashTemplate);
@@ -131,6 +136,7 @@ function ($scope, getCrashesUserSubmitted, datasetSettings) {
 
         var crash = result.db.push();
         crash.set(accident);
+        $scope.accidentPosted = true;
     });
   };
 }]);
