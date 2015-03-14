@@ -79,4 +79,8 @@ function ($scope, leafletData, getPaths) {
         if (!newValue) { return; }
         $scope.change();
     });
+    $scope.$watch('accidentColor', function(newValue, oldValue) {
+        if (!newValue) { return; }
+        $scope.change();
+    });
 }]);
